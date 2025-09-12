@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -54,6 +54,8 @@ const statuses = ["活跃", "潜在", "休眠"];
 export default function Customers() {
   const [searchTerm, setSearchTerm] = useState("");
   const [customers, setCustomers] = useState(initialCustomers);
+  const [filteredCustomers, setFilteredCustomers] = useState(initialCustomers);
+  const [statusFilter, setStatusFilter] = useState<string>("all");
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [selectedCustomerId, setSelectedCustomerId] = useState<number | null>(null);
   const [isEditing, setIsEditing] = useState(false);
@@ -77,7 +79,31 @@ export default function Customers() {
     location: "",
     revenue: ""
   });
-  const selectedCustomer = customers.find(c => c.id === selectedCustomerId);
+  const selectedCustomer = filteredCustomers.find(c => c.id === selectedCustomerId);
+
+  // 筛选客户
+  useEffect(() => {
+    let filtered = customers;
+
+    // 按搜索条件筛选
+    if (searchTerm) {
+      filtered = filtered.filter(customer => 
+        customer.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        customer.contact.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        customer.industry.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        customer.email.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        customer.phone.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        customer.location.toLowerCase().includes(searchTerm.toLowerCase())
+      );
+    }
+
+    // 按状态筛选
+    if (statusFilter !== "all") {
+      filtered = filtered.filter(customer => customer.status === statusFilter);
+    }
+
+    setFilteredCustomers(filtered);
+  }, [customers, searchTerm, statusFilter]);
   const handleCustomerClick = (customerId: number) => {
     if (selectedCustomerId === customerId) {
       setSelectedCustomerId(null);
@@ -261,15 +287,29 @@ export default function Customers() {
       {/* Search and Filter */}
       <Card className="shadow-card">
         <CardContent className="pt-6">
-          <div className="flex gap-4">
-            <div className="relative flex-1">
-              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-              <Input placeholder="搜索客户名称、联系人或行业..." className="pl-10" value={searchTerm} onChange={e => setSearchTerm(e.target.value)} />
+          <div className="flex flex-col sm:flex-row gap-4">
+            <div className="flex-1">
+              <div className="relative">
+                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                <Input 
+                  placeholder="搜索客户名称、联系人、行业、邮箱、电话或地区..." 
+                  className="pl-10" 
+                  value={searchTerm} 
+                  onChange={e => setSearchTerm(e.target.value)} 
+                />
+              </div>
             </div>
-            <Button variant="outline">
-              <Filter className="mr-2 h-4 w-4" />
-              筛选
-            </Button>
+            <Select value={statusFilter} onValueChange={setStatusFilter}>
+              <SelectTrigger className="w-full sm:w-48">
+                <SelectValue placeholder="选择状态" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">全部状态</SelectItem>
+                <SelectItem value="活跃">活跃</SelectItem>
+                <SelectItem value="潜在">潜在</SelectItem>
+                <SelectItem value="休眠">休眠</SelectItem>
+              </SelectContent>
+            </Select>
           </div>
         </CardContent>
       </Card>
@@ -293,7 +333,7 @@ export default function Customers() {
               </TableRow>
             </TableHeader>
             <TableBody>
-              {customers.map(customer => <TableRow key={customer.id}>
+              {filteredCustomers.map(customer => <TableRow key={customer.id}>
                   <TableCell>
                     <div className="flex items-center space-x-3">
                       <Avatar className="h-8 w-8">
