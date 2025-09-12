@@ -1,73 +1,42 @@
-# Welcome to your Lovable project
+#  Project info
 
-## Project info
+## 技术架构
+- **技术栈**: Vite + React + TypeScript
+- **UI组件库**: shadcn/ui - 基于Radix UI的现代组件库
+- **样式**：Tailwind CSS
 
-**URL**: https://lovable.dev/projects/9f80d30d-209d-4d4a-9c20-494f05cfe461
-
-## How can I edit this code?
-
-There are several ways of editing your application.
-
-**Use Lovable**
-
-Simply visit the [Lovable Project](https://lovable.dev/projects/9f80d30d-209d-4d4a-9c20-494f05cfe461) and start prompting.
-
-Changes made via Lovable will be committed automatically to this repo.
-
-**Use your preferred IDE**
-
-If you want to work locally using your own IDE, you can clone this repo and push changes. Pushed changes will also be reflected in Lovable.
-
-The only requirement is having Node.js & npm installed - [install with nvm](https://github.com/nvm-sh/nvm#installing-and-updating)
-
-Follow these steps:
-
-```sh
-# Step 1: Clone the repository using the project's Git URL.
-git clone <YOUR_GIT_URL>
-
-# Step 2: Navigate to the project directory.
-cd <YOUR_PROJECT_NAME>
-
-# Step 3: Install the necessary dependencies.
-npm i
-
-# Step 4: Start the development server with auto-reloading and an instant preview.
-npm run dev
-```
-
-**Edit a file directly in GitHub**
-
-- Navigate to the desired file(s).
-- Click the "Edit" button (pencil icon) at the top right of the file view.
-- Make your changes and commit the changes.
-
-**Use GitHub Codespaces**
-
-- Navigate to the main page of your repository.
-- Click on the "Code" button (green button) near the top right.
-- Select the "Codespaces" tab.
-- Click on "New codespace" to launch a new Codespace environment.
-- Edit files directly within the Codespace and commit and push your changes once you're done.
-
-## What technologies are used for this project?
-
-This project is built with:
-
-- Vite
-- TypeScript
-- React
-- shadcn-ui
-- Tailwind CSS
-
-## How can I deploy this project?
-
-Simply open [Lovable](https://lovable.dev/projects/9f80d30d-209d-4d4a-9c20-494f05cfe461) and click on Share -> Publish.
-
-## Can I connect a custom domain to my Lovable project?
-
-Yes, you can!
-
-To connect a domain, navigate to Project > Settings > Domains and click Connect Domain.
-
-Read more here: [Setting up a custom domain](https://docs.lovable.dev/tips-tricks/custom-domain#step-by-step-guide)
+## 项目目录结构
+crm/
+├── public/                     # 静态资源目录
+│   ├── favicon.ico
+│   ├── placeholder.svg
+│   └── robots.txt
+├── src/                        # 源代码目录
+│   ├── components/             # 组件目录
+│   │   ├── ui/                # shadcn/ui组件库，包含40个UI组件
+│   │   ├── AppSidebar.tsx     # 侧边栏导航组件
+│   │   └── Layout.tsx         # 页面布局组件，包含头部和侧边栏
+│   ├── pages/                 # 各页面组件目录
+│   │   ├── Dashboard.tsx      # 仪表板页面
+│   │   ├── Customers.tsx      # 客户管理页面
+│   │   ├── Leads.tsx          # 线索管理页面
+│   │   ├── Contacts.tsx       # 联系人管理页面
+│   │   ├── Index.tsx          # 首页
+│   │   └── NotFound.tsx       # 404页面
+│   ├── hooks/                 # 自定义React Hooks
+│   │   ├── use-mobile.tsx
+│   │   └── use-toast.ts
+│   ├── lib/                   # 工具函数库
+│   │   └── utils.ts          # 工具函数，包含样式合并等通用方法
+│   ├── App.tsx               # 应用主组件，配置路由和全局状态
+│   ├── main.tsx              # 应用入口，React应用挂载点
+│   ├── index.css             # 全局样式文件
+│   └── vite-env.d.ts         # Vite环境类型声明
+├── package.json               # 项目依赖配置
+├── vite.config.ts            # Vite构建配置
+├── tailwind.config.ts        # Tailwind CSS配置
+├── tsconfig.json             # TypeScript配置
+├── eslint.config.js          # ESLint代码规范配置
+├── components.json           # shadcn/ui组件配置
+├── postcss.config.js         # PostCSS配置
+└── index.html                # HTML入口文件
