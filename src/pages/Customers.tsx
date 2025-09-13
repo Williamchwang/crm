@@ -197,7 +197,6 @@ export default function Customers() {
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-3xl font-bold">客户管理</h1>
-          <p className="text-muted-foreground mt-1">管理您的客户信息和关系</p>
         </div>
         <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
           <DialogTrigger asChild>

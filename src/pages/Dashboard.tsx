@@ -163,7 +163,6 @@ export default function Dashboard() {
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-3xl font-bold">仪表板</h1>
-          <p className="text-muted-foreground mt-1">欢迎回来，查看您的CRM业务概览</p>
         </div>
         <div className="flex gap-2">
           <Button variant="outline" size="sm">

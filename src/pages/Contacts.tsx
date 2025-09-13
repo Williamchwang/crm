@@ -169,7 +169,6 @@ export default function Contacts() {
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-3xl font-bold">联系人管理</h1>
-          <p className="text-muted-foreground mt-1">管理客户的关键联系人信息</p>
         </div>
         <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
           <DialogTrigger asChild>

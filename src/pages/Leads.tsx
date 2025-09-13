@@ -258,7 +258,6 @@ export default function Leads() {
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-3xl font-bold">线索管理</h1>
-          <p className="text-muted-foreground mt-1">管理您的销售线索和潜在客户</p>
         </div>
         <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
           <DialogTrigger asChild>

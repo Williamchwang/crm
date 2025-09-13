@@ -43,7 +43,7 @@ export function AppSidebar() {
             {!isCollapsed && (
               <div className="min-w-0 flex-1">
                 <h1 className="font-bold text-xl bg-gradient-to-r from-foreground to-foreground/80 bg-clip-text text-transparent">
-                  CRM 系统
+                  CRM
                 </h1>
                 <p className="text-xs text-muted-foreground/80 font-medium">
                   客户关系管理平台

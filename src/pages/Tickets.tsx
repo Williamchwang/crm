@@ -441,42 +441,42 @@ export default function Tickets() {
     const statusConfigItem = getStatusConfig(ticket.status);
     const typeValue = getTypeDisplayText(ticket.type);
     const statusValue = getStatusDisplayText(ticket.status);
-    const mockSolution = `## 解决方案建议
+    const mockSolution = `# 解决方案建议
 
-### 问题分析
-根据工单描述，这是一个${typeValue}问题，状态为${statusValue}。
+## 问题分析
+根据工单描述，这是一个${typeValue}问题，当前状态为${statusValue}。
 
-### 联系信息
-- 联系人：${ticket.contact}
-- 联系电话：${ticket.phone}
-- 备注：${ticket.remarks}
+## 联系信息
+• 联系人：${ticket.contact || '未填写'}
+• 联系电话：${ticket.phone || '未填写'}
+• 备注信息：${ticket.remarks || '无'}
 
-### 解决步骤
+## 解决步骤
 
-1. **问题确认**
-   - 联系用户确认具体错误信息
-   - 检查用户账户状态和权限设置
-   - 验证登录凭据的有效性
+### 1. 问题确认
+• 联系用户确认具体错误信息
+• 检查用户账户状态和权限设置
+• 验证登录凭据的有效性
 
-2. **技术排查**
-   - 检查系统日志中的相关错误记录
-   - 验证数据库连接和用户表状态
-   - 测试不同浏览器的兼容性
+### 2. 技术排查
+• 检查系统日志中的相关错误记录
+• 验证数据库连接和用户表状态
+• 测试不同浏览器的兼容性
 
-3. **解决方案**
-   - 重置用户密码（如需要）
-   - 更新用户权限配置
-   - 清除浏览器缓存和Cookie
+### 3. 解决方案
+• 重置用户密码（如需要）
+• 更新用户权限配置
+• 清除浏览器缓存和Cookie
 
-### 预防措施
-- 定期检查系统日志
-- 建立用户权限审核机制
-- 提供用户自助重置密码功能
+## 预防措施
+• 定期检查系统日志
+• 建立用户权限审核机制
+• 提供用户自助重置密码功能
 
-### 后续跟进
-- 确认问题解决后关闭工单
-- 记录解决方案到知识库
-- 定期回访用户满意度`;
+## 后续跟进
+• 确认问题解决后关闭工单
+• 记录解决方案到知识库
+• 定期回访用户满意度`;
 
     // 短暂显示加载动画（1秒）
     await new Promise(resolve => setTimeout(resolve, 500));
@@ -660,10 +660,7 @@ export default function Tickets() {
 
       {/* 工单列表 */}
       <Card className="shadow-card">
-        <CardHeader>
-          <CardTitle>工单列表</CardTitle>
-        </CardHeader>
-        <CardContent>
+        <CardContent className="p-0">
           {isLoading ? (
             <div className="flex items-center justify-center h-32">
               <div className="text-center">
@@ -672,8 +669,7 @@ export default function Tickets() {
               </div>
             </div>
           ) : (
-            <div className="rounded-md border overflow-x-auto">
-              <Table className="min-w-full">
+            <Table>
               <TableHeader>
                 <TableRow>
                   <TableHead className="w-32">标题</TableHead>
@@ -752,7 +748,6 @@ export default function Tickets() {
                 })}
               </TableBody>
             </Table>
-            </div>
           )}
         </CardContent>
       </Card>
@@ -931,10 +926,12 @@ export default function Tickets() {
                    </div>
                  </div>
                ) : solutionText ? (
-                 <div className="h-80 border border-gray-300 rounded-md bg-gray-25">
+                 <div className="h-80 border border-gray-300 rounded-md bg-gray-50">
                    <ScrollArea ref={solutionScrollRef} className="h-80 w-full p-4">
                      <div className="text-sm max-w-none">
-                       <div className="whitespace-pre-wrap">{solutionText}</div>
+                       <div className="whitespace-pre-wrap leading-relaxed text-gray-800">
+                         {solutionText}
+                       </div>
                      </div>
                    </ScrollArea>
                  </div>
