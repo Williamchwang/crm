@@ -398,7 +398,7 @@ export default function Customers() {
                   </>
                 ) : (
                   <>
-                    <Button variant="outline" size="sm" onClick={handleStartEdit}>
+                    <Button size="sm" onClick={handleStartEdit} className="bg-gradient-primary">
                       编辑
                     </Button>
                     <Button variant="ghost" size="sm" onClick={() => setSelectedCustomerId(null)} className="text-muted-foreground hover:text-foreground">

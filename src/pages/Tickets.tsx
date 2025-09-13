@@ -19,6 +19,16 @@ import {
   DialogTrigger,
 } from "@/components/ui/dialog";
 import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
+import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
@@ -41,123 +51,117 @@ import {
   CheckCircle2,
   MoreHorizontal
 } from "lucide-react";
+import { getTickets, saveTicketId, getSavedTicketIds, Ticket as TicketData, getTypeDisplayText, getStatusDisplayText, createTicket, updateTicket, deleteTicket } from "@/services/tickets";
+import { isLoggedIn } from "@/services/auth";
+import { useToast } from "@/hooks/use-toast";
 
 // 工单状态枚举
-type TicketStatus = "pending" | "processing" | "resolved" | "closed";
-type Priority = "low" | "medium" | "high" | "urgent";
-type Category = "technical" | "feature" | "bug" | "account" | "billing" | "other";
-
-// 工单接口
-interface Ticket {
-  id: string;
-  title: string;
-  description: string;
-  category: Category;
-  status: TicketStatus;
-  priority: Priority;
-  assignedTo: string;
-  assignee: string;
-  createdAt: string;
-  updatedAt: string;
-}
+type TicketStatus = "1" | "3" | "5" | "待分配" | "处理中" | "已完成";
+type TicketType = "1" | "3" | "5" | "咨询" | "维修" | "投诉";
 
 // 状态配置
 const statusConfig = {
-  pending: { label: "待处理", color: "bg-yellow-100 text-yellow-800", icon: Clock },
-  processing: { label: "处理中", color: "bg-blue-100 text-blue-800", icon: AlertCircle },
-  resolved: { label: "已解决", color: "bg-green-100 text-green-800", icon: CheckCircle },
-  closed: { label: "已关闭", color: "bg-gray-100 text-gray-800", icon: XCircle }
+  "1": { label: "待分配", color: "bg-yellow-100 text-yellow-800", icon: Clock },
+  "3": { label: "处理中", color: "bg-blue-100 text-blue-800", icon: AlertCircle },
+  "5": { label: "已完成", color: "bg-green-100 text-green-800", icon: CheckCircle },
+  // 支持中文状态值
+  "待分配": { label: "待分配", color: "bg-yellow-100 text-yellow-800", icon: Clock },
+  "处理中": { label: "处理中", color: "bg-blue-100 text-blue-800", icon: AlertCircle },
+  "已完成": { label: "已完成", color: "bg-green-100 text-green-800", icon: CheckCircle }
 };
 
-const priorityConfig = {
-  low: { label: "低", color: "bg-gray-100 text-gray-800" },
-  medium: { label: "中", color: "bg-blue-100 text-blue-800" },
-  high: { label: "高", color: "bg-orange-100 text-orange-800" },
-  urgent: { label: "紧急", color: "bg-red-100 text-red-800" }
+const typeConfig = {
+  "1": "咨询",
+  "3": "维修",
+  "5": "投诉",
+  // 支持中文类型值
+  "咨询": "咨询",
+  "维修": "维修",
+  "投诉": "投诉"
 };
 
-const categoryConfig = {
-  technical: "技术支持",
-  feature: "功能请求", 
-  bug: "Bug报告",
-  account: "账户问题",
-  billing: "计费问题",
-  other: "其他"
+// 安全获取状态配置
+const getStatusConfig = (status: string) => {
+  const displayStatus = getStatusDisplayText(status);
+  return statusConfig[displayStatus as keyof typeof statusConfig] || {
+    label: displayStatus,
+    color: "bg-gray-100 text-gray-800",
+    icon: AlertCircle
+  };
 };
 
-// 模拟数据
-const initialTickets: Ticket[] = [
-  {
-    id: "T001",
-    title: "系统登录异常",
-    description: "用户反馈无法正常登录系统，提示密码错误，但密码确认无误",
-    category: "technical",
-    status: "pending",
-    priority: "high",
-    assignedTo: "张三",
-    assignee: "李四",
-    createdAt: "2024-01-15 09:30:00",
-    updatedAt: "2024-01-15 09:30:00"
-  },
-  {
-    id: "T002", 
-    title: "新增客户导出功能",
-    description: "希望能够在客户管理页面添加批量导出客户信息的功能",
-    category: "feature",
-    status: "processing",
-    priority: "medium",
-    assignedTo: "王五",
-    assignee: "赵六",
-    createdAt: "2024-01-14 14:20:00",
-    updatedAt: "2024-01-15 10:15:00"
-  },
-  {
-    id: "T003",
-    title: "数据统计页面显示错误",
-    description: "仪表板的数据统计卡片显示的数据与实际不符",
-    category: "bug",
-    status: "resolved",
-    priority: "high",
-    assignedTo: "钱七",
-    assignee: "孙八",
-    createdAt: "2024-01-13 16:45:00",
-    updatedAt: "2024-01-14 11:30:00"
-  },
-  {
-    id: "T004",
-    title: "账户权限问题",
-    description: "新注册用户无法访问某些功能模块",
-    category: "account",
-    status: "closed",
-    priority: "urgent",
-    assignedTo: "周九",
-    assignee: "吴十",
-    createdAt: "2024-01-12 08:15:00",
-    updatedAt: "2024-01-13 17:20:00"
-  }
-];
+// 安全获取类型配置
+const getTypeConfig = (type: string) => {
+  return getTypeDisplayText(type);
+};
+
 
 export default function Tickets() {
-  const [tickets, setTickets] = useState<Ticket[]>(initialTickets);
-  const [filteredTickets, setFilteredTickets] = useState<Ticket[]>(initialTickets);
-  const [selectedTicket, setSelectedTicket] = useState<Ticket | null>(null);
+  const [tickets, setTickets] = useState<TicketData[]>([]);
+  const [filteredTickets, setFilteredTickets] = useState<TicketData[]>([]);
+  const [selectedTicket, setSelectedTicket] = useState<TicketData | null>(null);
   const [searchQuery, setSearchQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState<string>("all");
   const [solutionText, setSolutionText] = useState("");
   const [isGeneratingSolution, setIsGeneratingSolution] = useState(false);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
-  const [newTicket, setNewTicket] = useState<Partial<Ticket>>({
+  const [isEditing, setIsEditing] = useState(false);
+  const [isLoading, setIsLoading] = useState(true);
+  const [isCreatingTicket, setIsCreatingTicket] = useState(false);
+  const [isUpdatingTicket, setIsUpdatingTicket] = useState(false);
+  const [isDeletingTicket, setIsDeletingTicket] = useState(false);
+  const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
+  const [ticketToDelete, setTicketToDelete] = useState<TicketData | null>(null);
+  const { toast } = useToast();
+  const [editFormData, setEditFormData] = useState({
     title: "",
+    type: "1",
+    status: "1",
     description: "",
-    category: "technical",
-    priority: "medium",
-    assignedTo: "",
-    assignee: ""
+    contact: "",
+    phone: "",
+    remarks: ""
+  });
+  const [newTicket, setNewTicket] = useState<Partial<TicketData>>({
+    title: "",
+    type: "1",
+    status: "1",
+    description: "",
+    contact: "",
+    phone: "",
+    remarks: ""
   });
   const solutionScrollRef = useRef<HTMLDivElement>(null);
 
+  // 加载工单数据
+  const loadTickets = async () => {
+    setIsLoading(true);
+    try {
+      const ticketData = await getTickets();
+      setTickets(ticketData);
+      setFilteredTickets(ticketData);
+      
+      // 保存工单ID
+      ticketData.forEach(ticket => {
+        saveTicketId(ticket.id);
+      });
+    } catch (error) {
+      console.error('加载工单数据失败:', error);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+
+  // 组件挂载时加载数据
+  useEffect(() => {
+    loadTickets();
+  }, []);
+
+  // 移除页面可见性变化的自动刷新，避免过于频繁的请求
+
   // 处理输入变化
-  const handleInputChange = (field: keyof Ticket, value: string) => {
+  const handleInputChange = (field: keyof TicketData, value: string) => {
     setNewTicket(prev => ({
       ...prev,
       [field]: value
@@ -171,96 +175,220 @@ export default function Tickets() {
   };
 
   // 添加新工单
-  const handleAddTicket = () => {
-    if (!newTicket.title || !newTicket.description) {
-      alert("请填写必填字段：标题和描述");
+  const handleAddTicket = async () => {
+    if (!newTicket.title) {
+      toast({
+        title: "验证失败",
+        description: "请填写必填字段：标题",
+        variant: "destructive",
+      });
       return;
     }
 
-    const now = new Date().toLocaleString('zh-CN', {
-      year: 'numeric',
-      month: '2-digit',
-      day: '2-digit',
-      hour: '2-digit',
-      minute: '2-digit',
-      second: '2-digit'
-    }).replace(/\//g, '-');
+    setIsCreatingTicket(true);
 
-    const ticket: Ticket = {
+    const ticket: TicketData = {
       id: generateTicketId(),
       title: newTicket.title,
-      description: newTicket.description,
-      category: newTicket.category as Category || "technical",
-      status: "pending",
-      priority: newTicket.priority as Priority || "medium",
-      assignedTo: newTicket.assignedTo || "待分配",
-      assignee: newTicket.assignee || "待分配",
-      createdAt: now,
-      updatedAt: now
+      type: newTicket.type as TicketType || "1",
+      status: newTicket.status as TicketStatus || "1",
+      description: newTicket.description || "",
+      contact: newTicket.contact || "",
+      phone: newTicket.phone || "",
+      remarks: newTicket.remarks || ""
     };
 
-    setTickets(prev => [...prev, ticket]);
-    setNewTicket({
-      title: "",
-      description: "",
-      category: "technical",
-      priority: "medium",
-      assignedTo: "",
-      assignee: ""
-    });
-    setIsDialogOpen(false);
+    try {
+      // 调用创建工单API
+      const createdTicket = await createTicket(ticket);
+      
+      // 更新本地工单列表，将新工单添加到第一行
+      setTickets(prev => [createdTicket, ...prev]);
+      
+      // 清空表单
+      setNewTicket({
+        title: "",
+        type: "1",
+        status: "1",
+        description: "",
+        contact: "",
+        phone: "",
+        remarks: ""
+      });
+      
+      // 关闭对话框
+      setIsDialogOpen(false);
+      
+      // 显示成功消息
+      toast({
+        title: "创建成功",
+        description: "工单创建成功！",
+      });
+    } catch (error) {
+      console.error('创建工单失败:', error);
+      toast({
+        title: "创建失败",
+        description: `创建工单失败: ${error instanceof Error ? error.message : '未知错误'}`,
+        variant: "destructive",
+      });
+    } finally {
+      setIsCreatingTicket(false);
+    }
+  };
+
+  // 处理工单选择
+  const handleTicketSelect = (ticket: TicketData) => {
+    setSelectedTicket(ticket);
+    // 自动触发生成解决方案
+    generateSolutionForTicket(ticket);
+  };
+
+  // 编辑相关函数
+  const handleEditInputChange = (field: string, value: string) => {
+    setEditFormData(prev => ({
+      ...prev,
+      [field]: value
+    }));
+  };
+
+  const handleStartEdit = () => {
+    if (selectedTicket) {
+      setEditFormData({
+        title: selectedTicket.title,
+        type: selectedTicket.type,
+        status: selectedTicket.status,
+        description: selectedTicket.description,
+        contact: selectedTicket.contact,
+        phone: selectedTicket.phone,
+        remarks: selectedTicket.remarks
+      });
+    }
+    setIsEditing(true);
+  };
+
+  const handleCancelEdit = () => {
+    setIsEditing(false);
+  };
+
+  const handleSaveEdit = async () => {
+    if (!selectedTicket || !editFormData.title) {
+      toast({
+        title: "验证失败",
+        description: "请填写必填字段：标题",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    setIsUpdatingTicket(true);
+
+    try {
+      const updatedTicket = {
+        ...selectedTicket,
+        ...editFormData,
+        type: editFormData.type as TicketType,
+        status: editFormData.status as TicketStatus
+      };
+
+      // 调用更新工单API
+      const savedTicket = await updateTicket(updatedTicket);
+      
+      // 更新本地工单列表
+      setTickets(prev => prev.map(ticket => 
+        ticket.id === selectedTicket.id 
+          ? savedTicket
+          : ticket
+      ));
+      setSelectedTicket(savedTicket);
+      setIsEditing(false);
+      
+      // 显示成功消息
+      toast({
+        title: "更新成功",
+        description: "工单更新成功！",
+      });
+    } catch (error) {
+      console.error('更新工单失败:', error);
+      toast({
+        title: "更新失败",
+        description: `更新工单失败: ${error instanceof Error ? error.message : '未知错误'}`,
+        variant: "destructive",
+      });
+    } finally {
+      setIsUpdatingTicket(false);
+    }
+  };
+
+  // 确认删除工单
+  const handleConfirmDelete = async () => {
+    if (!ticketToDelete) return;
+    
+    setIsDeleteDialogOpen(false);
+    await handleDeleteTicket(ticketToDelete);
+    setTicketToDelete(null);
+  };
+
+  // 取消删除工单
+  const handleCancelDelete = () => {
+    setIsDeleteDialogOpen(false);
+    setTicketToDelete(null);
+  };
+
+  // 删除工单
+  const handleDeleteTicket = async (ticket: TicketData) => {
+    setIsDeletingTicket(true);
+    
+    try {
+      // 调用删除工单API
+      await deleteTicket(ticket.id);
+      
+      // 从本地工单列表中移除
+      setTickets(prev => prev.filter(t => t.id !== ticket.id));
+      
+      // 如果删除的是当前选中的工单，清空选中状态
+      if (selectedTicket?.id === ticket.id) {
+        setSelectedTicket(null);
+      }
+      
+      // 显示成功消息
+      toast({
+        title: "删除成功",
+        description: "工单删除成功！",
+      });
+    } catch (error) {
+      console.error('删除工单失败:', error);
+      toast({
+        title: "删除失败",
+        description: `删除工单失败: ${error instanceof Error ? error.message : '未知错误'}`,
+        variant: "destructive",
+      });
+    } finally {
+      setIsDeletingTicket(false);
+    }
   };
 
   // 处理菜单操作
-  const handleMenuAction = (action: string, ticket: Ticket) => {
+  const handleMenuAction = (action: string, ticket: TicketData) => {
     switch (action) {
       case "view":
-        setSelectedTicket(ticket);
+        handleTicketSelect(ticket);
         break;
       case "edit":
         // 这里可以实现编辑功能
-        alert(`编辑工单: ${ticket.title}`);
-        break;
-      case "assign":
-        // 这里可以实现分配功能
-        alert(`分配工单: ${ticket.title}`);
-        break;
-      case "close":
-        // 关闭工单
-        setTickets(prev => prev.map(t => 
-          t.id === ticket.id 
-            ? { ...t, status: "closed" as TicketStatus, updatedAt: new Date().toLocaleString('zh-CN', {
-                year: 'numeric',
-                month: '2-digit',
-                day: '2-digit',
-                hour: '2-digit',
-                minute: '2-digit',
-                second: '2-digit'
-              }).replace(/\//g, '-') }
-            : t
-        ));
+        toast({
+          title: "编辑工单",
+          description: `正在编辑工单: ${ticket.title}`,
+        });
         break;
       case "delete":
-        if (confirm(`确定要删除工单 "${ticket.title}" 吗？`)) {
-          setTickets(prev => prev.filter(t => t.id !== ticket.id));
-        }
+        setTicketToDelete(ticket);
+        setIsDeleteDialogOpen(true);
         break;
       default:
         break;
     }
   };
 
-  // 统计各状态工单数量
-  const getStatusCounts = () => {
-    const counts = {
-      total: tickets.length,
-      pending: tickets.filter(t => t.status === "pending").length,
-      processing: tickets.filter(t => t.status === "processing").length,
-      resolved: tickets.filter(t => t.status === "resolved").length,
-      closed: tickets.filter(t => t.status === "closed").length
-    };
-    return counts;
-  };
 
   // 筛选工单
   useEffect(() => {
@@ -271,7 +399,8 @@ export default function Tickets() {
       filtered = filtered.filter(ticket => 
         ticket.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
         ticket.description.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        ticket.assignee.toLowerCase().includes(searchQuery.toLowerCase())
+        ticket.contact.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        ticket.phone.toLowerCase().includes(searchQuery.toLowerCase())
       );
     }
 
@@ -301,20 +430,26 @@ export default function Tickets() {
   }, [solutionText]);
 
   // 生成解决方案
-  const generateSolution = async () => {
-    if (!selectedTicket) return;
-    
+  const generateSolutionForTicket = async (ticket: TicketData) => {
     setIsGeneratingSolution(true);
     setSolutionText("");
 
     // 模拟大模型流式输出
-    const prompt = `${selectedTicket.description}\n请根据以上内容，推荐工单解决方案建议，简明扼要，突出重点。\n请使用Markdown格式输出:`;
+    const prompt = `${ticket.description}\n请根据以上内容，推荐工单解决方案建议，简明扼要，突出重点。\n请使用Markdown格式输出:`;
     
     // 模拟流式响应
+    const statusConfigItem = getStatusConfig(ticket.status);
+    const typeValue = getTypeDisplayText(ticket.type);
+    const statusValue = getStatusDisplayText(ticket.status);
     const mockSolution = `## 解决方案建议
 
 ### 问题分析
-根据工单描述，这是一个${categoryConfig[selectedTicket.category]}问题，优先级为${priorityConfig[selectedTicket.priority].label}。
+根据工单描述，这是一个${typeValue}问题，状态为${statusValue}。
+
+### 联系信息
+- 联系人：${ticket.contact}
+- 联系电话：${ticket.phone}
+- 备注：${ticket.remarks}
 
 ### 解决步骤
 
@@ -343,16 +478,17 @@ export default function Tickets() {
 - 记录解决方案到知识库
 - 定期回访用户满意度`;
 
+    // 短暂显示加载动画（1秒）
+    await new Promise(resolve => setTimeout(resolve, 500));
+    setIsGeneratingSolution(false);
+
     // 模拟逐字输出效果
     for (let i = 0; i < mockSolution.length; i++) {
       await new Promise(resolve => setTimeout(resolve, 20));
       setSolutionText(prev => prev + mockSolution[i]);
     }
-    
-    setIsGeneratingSolution(false);
   };
 
-  const statusCounts = getStatusCounts();
 
   return (
     <div className="p-6 space-y-6">
@@ -360,9 +496,9 @@ export default function Tickets() {
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-3xl font-bold">工单管理</h1>
-          <p className="text-muted-foreground mt-1">管理和跟踪客户服务工单</p>
         </div>
-        <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
+        <div className="flex items-center gap-2">
+          <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
           <DialogTrigger asChild>
             <Button className="bg-gradient-primary">
               <Plus className="mr-2 h-4 w-4" />
@@ -372,9 +508,6 @@ export default function Tickets() {
           <DialogContent className="sm:max-w-[600px]">
             <DialogHeader>
               <DialogTitle>新建工单</DialogTitle>
-              <DialogDescription>
-                填写工单的基本信息，带*的字段为必填项
-              </DialogDescription>
             </DialogHeader>
             <div className="grid gap-4 py-4">
               <div className="space-y-2">
@@ -387,154 +520,123 @@ export default function Tickets() {
                 />
               </div>
               
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label htmlFor="type">类型</Label>
+                  <Select
+                    value={newTicket.type}
+                    onValueChange={(value) => handleInputChange("type", value)}
+                  >
+                    <SelectTrigger id="type">
+                      <SelectValue placeholder="选择类型" />
+                    </SelectTrigger>
+                     <SelectContent>
+                       <SelectItem value="1">咨询</SelectItem>
+                       <SelectItem value="3">维修</SelectItem>
+                       <SelectItem value="5">投诉</SelectItem>
+                     </SelectContent>
+                  </Select>
+                </div>
+                
+                <div className="space-y-2">
+                  <Label htmlFor="status">状态</Label>
+                  <Select
+                    value={newTicket.status}
+                    onValueChange={(value) => handleInputChange("status", value)}
+                  >
+                    <SelectTrigger id="status">
+                      <SelectValue placeholder="选择状态" />
+                    </SelectTrigger>
+                     <SelectContent>
+                       <SelectItem value="1">待分配</SelectItem>
+                       <SelectItem value="3">处理中</SelectItem>
+                       <SelectItem value="5">已完成</SelectItem>
+                     </SelectContent>
+                  </Select>
+                </div>
+              </div>
+              
               <div className="space-y-2">
-                <Label htmlFor="description">描述 *</Label>
+                <Label htmlFor="description">问题描述</Label>
                 <Textarea
                   id="description"
-                  placeholder="请详细描述问题或需求"
+                  placeholder="请详细描述问题或需求（可选）"
                   value={newTicket.description}
                   onChange={(e) => handleInputChange("description", e.target.value)}
-                  rows={4}
+                  rows={1}
                 />
               </div>
               
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-2">
-                  <Label htmlFor="category">分类</Label>
-                  <Select
-                    value={newTicket.category}
-                    onValueChange={(value) => handleInputChange("category", value)}
-                  >
-                    <SelectTrigger>
-                      <SelectValue placeholder="选择分类" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="technical">技术支持</SelectItem>
-                      <SelectItem value="feature">功能请求</SelectItem>
-                      <SelectItem value="bug">Bug报告</SelectItem>
-                      <SelectItem value="account">账户问题</SelectItem>
-                      <SelectItem value="billing">计费问题</SelectItem>
-                      <SelectItem value="other">其他</SelectItem>
-                    </SelectContent>
-                  </Select>
+                  <Label htmlFor="contact">联系人</Label>
+                  <Input
+                    id="contact"
+                    placeholder="请输入联系人姓名"
+                    value={newTicket.contact}
+                    onChange={(e) => handleInputChange("contact", e.target.value)}
+                  />
                 </div>
                 <div className="space-y-2">
-                  <Label htmlFor="priority">优先级</Label>
-                  <Select
-                    value={newTicket.priority}
-                    onValueChange={(value) => handleInputChange("priority", value)}
-                  >
-                    <SelectTrigger>
-                      <SelectValue placeholder="选择优先级" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="low">低</SelectItem>
-                      <SelectItem value="medium">中</SelectItem>
-                      <SelectItem value="high">高</SelectItem>
-                      <SelectItem value="urgent">紧急</SelectItem>
-                    </SelectContent>
-                  </Select>
+                  <Label htmlFor="phone">电话</Label>
+                  <Input
+                    id="phone"
+                    placeholder="请输入联系电话"
+                    value={newTicket.phone}
+                    onChange={(e) => handleInputChange("phone", e.target.value)}
+                  />
                 </div>
               </div>
               
-              <div className="grid grid-cols-2 gap-4">
-                <div className="space-y-2">
-                  <Label htmlFor="assignedTo">分配给</Label>
-                  <Input
-                    id="assignedTo"
-                    placeholder="请输入分配对象"
-                    value={newTicket.assignedTo}
-                    onChange={(e) => handleInputChange("assignedTo", e.target.value)}
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="assignee">负责人</Label>
-                  <Input
-                    id="assignee"
-                    placeholder="请输入负责人"
-                    value={newTicket.assignee}
-                    onChange={(e) => handleInputChange("assignee", e.target.value)}
-                  />
-                </div>
+              <div className="space-y-2">
+                <Label htmlFor="remarks">备注</Label>
+                <Textarea
+                  id="remarks"
+                  placeholder="请输入备注信息"
+                  value={newTicket.remarks}
+                  onChange={(e) => handleInputChange("remarks", e.target.value)}
+                  rows={1}
+                />
               </div>
             </div>
             <DialogFooter>
-              <Button variant="outline" onClick={() => setIsDialogOpen(false)}>
+              <Button 
+                variant="outline" 
+                onClick={() => setIsDialogOpen(false)}
+                disabled={isCreatingTicket}
+              >
                 取消
               </Button>
-              <Button onClick={handleAddTicket} className="bg-gradient-primary">
-                创建工单
+              <Button 
+                onClick={handleAddTicket} 
+                className="bg-gradient-primary"
+                disabled={isCreatingTicket}
+              >
+                {isCreatingTicket ? (
+                  <>
+                    <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
+                    创建中...
+                  </>
+                ) : (
+                  "创建工单"
+                )}
               </Button>
             </DialogFooter>
           </DialogContent>
         </Dialog>
+        </div>
       </div>
 
-      {/* 统计卡片 */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
-        <Card className="shadow-card">
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">总工单数</CardTitle>
-            <Ticket className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{statusCounts.total}</div>
-          </CardContent>
-        </Card>
-        
-        <Card className="shadow-card">
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">待处理</CardTitle>
-            <Clock className="h-4 w-4 text-yellow-600" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold text-yellow-600">{statusCounts.pending}</div>
-          </CardContent>
-        </Card>
-        
-        <Card className="shadow-card">
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">处理中</CardTitle>
-            <AlertCircle className="h-4 w-4 text-blue-600" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold text-blue-600">{statusCounts.processing}</div>
-          </CardContent>
-        </Card>
-        
-        <Card className="shadow-card">
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">已解决</CardTitle>
-            <CheckCircle className="h-4 w-4 text-green-600" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold text-green-600">{statusCounts.resolved}</div>
-          </CardContent>
-        </Card>
-        
-        <Card className="shadow-card">
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">已关闭</CardTitle>
-            <XCircle className="h-4 w-4 text-gray-600" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold text-gray-600">{statusCounts.closed}</div>
-          </CardContent>
-        </Card>
-      </div>
 
-      {/* 查询条件 */}
+      {/* Search and Filter */}
       <Card className="shadow-card">
-        <CardHeader>
-          <CardTitle>查询条件</CardTitle>
-        </CardHeader>
-        <CardContent>
+        <CardContent className="pt-6">
           <div className="flex flex-col sm:flex-row gap-4">
             <div className="flex-1">
               <div className="relative">
-                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground h-4 w-4" />
+                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                 <Input
-                  placeholder="搜索工单标题、描述或处理人员..."
+                  placeholder="搜索工单标题、描述、联系人或电话..."
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
                   className="pl-10"
@@ -547,10 +649,9 @@ export default function Tickets() {
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="all">全部状态</SelectItem>
-                <SelectItem value="pending">待处理</SelectItem>
-                <SelectItem value="processing">处理中</SelectItem>
-                <SelectItem value="resolved">已解决</SelectItem>
-                <SelectItem value="closed">已关闭</SelectItem>
+                <SelectItem value="1">待分配</SelectItem>
+                <SelectItem value="3">处理中</SelectItem>
+                <SelectItem value="5">已完成</SelectItem>
               </SelectContent>
             </Select>
           </div>
@@ -561,50 +662,60 @@ export default function Tickets() {
       <Card className="shadow-card">
         <CardHeader>
           <CardTitle>工单列表</CardTitle>
-          <CardDescription>共 {filteredTickets.length} 个工单</CardDescription>
         </CardHeader>
         <CardContent>
-          <div className="rounded-md border">
-            <Table>
+          {isLoading ? (
+            <div className="flex items-center justify-center h-32">
+              <div className="text-center">
+                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto mb-2"></div>
+                <p className="text-sm text-muted-foreground">正在加载工单数据...</p>
+              </div>
+            </div>
+          ) : (
+            <div className="rounded-md border overflow-x-auto">
+              <Table className="min-w-full">
               <TableHeader>
                 <TableRow>
-                  <TableHead>工单ID</TableHead>
-                  <TableHead>标题</TableHead>
-                  <TableHead>分类</TableHead>
-                  <TableHead>状态</TableHead>
-                  <TableHead>优先级</TableHead>
-                  <TableHead>负责人</TableHead>
-                  <TableHead>创建时间</TableHead>
+                  <TableHead className="w-32">标题</TableHead>
+                  <TableHead className="w-20">类型</TableHead>
+                  <TableHead className="w-24">状态</TableHead>
+                  <TableHead className="w-48">问题描述</TableHead>
+                  <TableHead className="w-24">联系人</TableHead>
+                  <TableHead className="w-32">电话</TableHead>
                   <TableHead className="w-12"></TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
                 {filteredTickets.map((ticket) => {
-                  const StatusIcon = statusConfig[ticket.status].icon;
+                  const statusConfigItem = getStatusConfig(ticket.status);
+                  const StatusIcon = statusConfigItem.icon;
                   return (
                     <TableRow 
                       key={ticket.id}
                       className={`cursor-pointer hover:bg-muted/50 ${
                         selectedTicket?.id === ticket.id ? 'bg-muted' : ''
                       }`}
-                      onClick={() => setSelectedTicket(ticket)}
+                      onClick={() => handleTicketSelect(ticket)}
                     >
-                      <TableCell className="font-medium">{ticket.id}</TableCell>
-                      <TableCell className="max-w-xs truncate">{ticket.title}</TableCell>
-                      <TableCell>{categoryConfig[ticket.category]}</TableCell>
-                      <TableCell>
-                        <Badge className={statusConfig[ticket.status].color}>
+                      <TableCell className="w-32">
+                        <div className="truncate" title={ticket.title}>
+                          {ticket.title.length > 10 ? `${ticket.title.substring(0, 10)}...` : ticket.title}
+                        </div>
+                      </TableCell>
+                      <TableCell className="w-20">{getTypeConfig(ticket.type)}</TableCell>
+                      <TableCell className="w-24">
+                        <Badge className={statusConfigItem.color}>
                           <StatusIcon className="w-3 h-3 mr-1" />
-                          {statusConfig[ticket.status].label}
+                          {statusConfigItem.label}
                         </Badge>
                       </TableCell>
-                      <TableCell>
-                        <Badge className={priorityConfig[ticket.priority].color}>
-                          {priorityConfig[ticket.priority].label}
-                        </Badge>
+                      <TableCell className="w-48">
+                        <div className="truncate" title={ticket.description}>
+                          {ticket.description.length > 15 ? `${ticket.description.substring(0, 15)}...` : ticket.description}
+                        </div>
                       </TableCell>
-                      <TableCell>{ticket.assignee}</TableCell>
-                      <TableCell>{ticket.createdAt}</TableCell>
+                      <TableCell className="w-24">{ticket.contact}</TableCell>
+                      <TableCell className="w-32">{ticket.phone}</TableCell>
                       <TableCell>
                         <DropdownMenu>
                           <DropdownMenuTrigger asChild>
@@ -619,19 +730,19 @@ export default function Tickets() {
                             <DropdownMenuItem onClick={() => handleMenuAction("edit", ticket)}>
                               编辑工单
                             </DropdownMenuItem>
-                            <DropdownMenuItem onClick={() => handleMenuAction("assign", ticket)}>
-                              分配工单
-                            </DropdownMenuItem>
-                            {ticket.status !== "closed" && (
-                              <DropdownMenuItem onClick={() => handleMenuAction("close", ticket)}>
-                                关闭工单
-                              </DropdownMenuItem>
-                            )}
                             <DropdownMenuItem 
                               onClick={() => handleMenuAction("delete", ticket)}
                               className="text-destructive"
+                              disabled={isDeletingTicket}
                             >
-                              删除工单
+                              {isDeletingTicket ? (
+                                <>
+                                  <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-red-600 mr-2"></div>
+                                  删除中...
+                                </>
+                              ) : (
+                                "删除工单"
+                              )}
                             </DropdownMenuItem>
                           </DropdownMenuContent>
                         </DropdownMenu>
@@ -641,132 +752,234 @@ export default function Tickets() {
                 })}
               </TableBody>
             </Table>
-          </div>
+            </div>
+          )}
         </CardContent>
       </Card>
 
       {/* 工单详情和推荐解决方案 */}
       {selectedTicket && (
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        <div className="grid grid-cols-1 lg:grid-cols-5 gap-6">
           {/* 工单详情 */}
-          <Card className="shadow-card">
+          <Card className="shadow-card lg:col-span-3">
             <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <Ticket className="h-5 w-5" />
-                工单详情
-              </CardTitle>
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <CardTitle className="flex items-center gap-2">
+                    <Ticket className="h-5 w-5" />
+                    工单详情
+                  </CardTitle>
+                </div>
+                <div className="flex gap-2">
+                  {isEditing ? (
+                    <>
+                      <Button variant="outline" size="sm" onClick={handleCancelEdit}>
+                        取消
+                      </Button>
+                      <Button 
+                        size="sm" 
+                        onClick={handleSaveEdit} 
+                        className="bg-gradient-primary"
+                        disabled={isUpdatingTicket}
+                      >
+                        {isUpdatingTicket ? (
+                          <>
+                            <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
+                            保存中...
+                          </>
+                        ) : (
+                          "保存"
+                        )}
+                      </Button>
+                    </>
+                  ) : (
+                    <Button size="sm" onClick={handleStartEdit} className="bg-gradient-primary">
+                      编辑
+                    </Button>
+                  )}
+                </div>
+              </div>
             </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <Label className="text-sm font-medium text-muted-foreground">工单ID</Label>
-                  <p className="text-sm font-mono">{selectedTicket.id}</p>
-                </div>
-                <div>
-                  <Label className="text-sm font-medium text-muted-foreground">分类</Label>
-                  <p className="text-sm">{categoryConfig[selectedTicket.category]}</p>
-                </div>
-              </div>
-              
-              <div>
-                <Label className="text-sm font-medium text-muted-foreground">标题</Label>
-                <p className="text-sm font-medium">{selectedTicket.title}</p>
-              </div>
-              
-              <div>
-                <Label className="text-sm font-medium text-muted-foreground">描述</Label>
-                <p className="text-sm text-muted-foreground">{selectedTicket.description}</p>
-              </div>
-              
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <Label className="text-sm font-medium text-muted-foreground">状态</Label>
-                  <div className="mt-1">
-                    <Badge className={statusConfig[selectedTicket.status].color}>
-                      {(() => {
-                        const StatusIcon = statusConfig[selectedTicket.status].icon;
-                        return <StatusIcon className="w-3 h-3 mr-1" />;
-                      })()}
-                      {statusConfig[selectedTicket.status].label}
-                    </Badge>
-                  </div>
-                </div>
-                <div>
-                  <Label className="text-sm font-medium text-muted-foreground">优先级</Label>
-                  <div className="mt-1">
-                    <Badge className={priorityConfig[selectedTicket.priority].color}>
-                      {priorityConfig[selectedTicket.priority].label}
-                    </Badge>
-                  </div>
-                </div>
-              </div>
-              
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <Label className="text-sm font-medium text-muted-foreground">分配给</Label>
-                  <p className="text-sm">{selectedTicket.assignedTo}</p>
-                </div>
-                <div>
-                  <Label className="text-sm font-medium text-muted-foreground">负责人</Label>
-                  <p className="text-sm">{selectedTicket.assignee}</p>
-                </div>
-              </div>
-              
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <Label className="text-sm font-medium text-muted-foreground">创建时间</Label>
-                  <p className="text-sm">{selectedTicket.createdAt}</p>
-                </div>
-                <div>
-                  <Label className="text-sm font-medium text-muted-foreground">更新时间</Label>
-                  <p className="text-sm">{selectedTicket.updatedAt}</p>
-                </div>
-              </div>
-            </CardContent>
+             <CardContent className="space-y-4">
+               <div>
+                 <Label className="text-xs text-muted-foreground">标题</Label>
+                 {isEditing ? (
+                   <Input 
+                     value={editFormData.title} 
+                     onChange={e => handleEditInputChange("title", e.target.value)}
+                   />
+                 ) : (
+                   <div className="font-medium">{selectedTicket.title}</div>
+                 )}
+               </div>
+               
+               <div className="grid grid-cols-2 gap-4">
+                 <div>
+                   <Label className="text-xs text-muted-foreground">类型</Label>
+                   {isEditing ? (
+                     <Select value={editFormData.type} onValueChange={value => handleEditInputChange("type", value)}>
+                       <SelectTrigger>
+                         <SelectValue placeholder="选择类型" />
+                       </SelectTrigger>
+                       <SelectContent>
+                         <SelectItem value="1">咨询</SelectItem>
+                         <SelectItem value="3">维修</SelectItem>
+                         <SelectItem value="5">投诉</SelectItem>
+                       </SelectContent>
+                     </Select>
+                   ) : (
+                     <div className="font-medium">{getTypeConfig(selectedTicket.type)}</div>
+                   )}
+                 </div>
+                 <div>
+                   <Label className="text-xs text-muted-foreground">状态</Label>
+                   {isEditing ? (
+                     <Select value={editFormData.status} onValueChange={value => handleEditInputChange("status", value)}>
+                       <SelectTrigger>
+                         <SelectValue placeholder="选择状态" />
+                       </SelectTrigger>
+                       <SelectContent>
+                         <SelectItem value="1">待分配</SelectItem>
+                         <SelectItem value="3">处理中</SelectItem>
+                         <SelectItem value="5">已完成</SelectItem>
+                       </SelectContent>
+                     </Select>
+                   ) : (
+                     <div className="mt-1">
+                       {(() => {
+                         const statusConfigItem = getStatusConfig(selectedTicket.status);
+                         const StatusIcon = statusConfigItem.icon;
+                         return (
+                           <Badge className={statusConfigItem.color}>
+                             <StatusIcon className="w-3 h-3 mr-1" />
+                             {statusConfigItem.label}
+                           </Badge>
+                         );
+                       })()}
+                     </div>
+                   )}
+                 </div>
+               </div>
+               
+               <div>
+                 <Label className="text-xs text-muted-foreground">问题描述</Label>
+                 {isEditing ? (
+                   <Textarea 
+                     value={editFormData.description} 
+                     onChange={e => handleEditInputChange("description", e.target.value)}
+                     rows={1}
+                   />
+                 ) : (
+                   <div className="font-medium">{selectedTicket.description}</div>
+                 )}
+               </div>
+               
+               <div className="grid grid-cols-2 gap-4">
+                 <div>
+                   <Label className="text-xs text-muted-foreground">联系人</Label>
+                   {isEditing ? (
+                     <Input 
+                       value={editFormData.contact} 
+                       onChange={e => handleEditInputChange("contact", e.target.value)}
+                     />
+                   ) : (
+                     <div className="font-medium">{selectedTicket.contact}</div>
+                   )}
+                 </div>
+                 <div>
+                   <Label className="text-xs text-muted-foreground">电话</Label>
+                   {isEditing ? (
+                     <Input 
+                       value={editFormData.phone} 
+                       onChange={e => handleEditInputChange("phone", e.target.value)}
+                     />
+                   ) : (
+                     <div className="font-medium">{selectedTicket.phone}</div>
+                   )}
+                 </div>
+               </div>
+               
+               <div>
+                 <Label className="text-xs text-muted-foreground">备注</Label>
+                 {isEditing ? (
+                   <Textarea 
+                     value={editFormData.remarks} 
+                     onChange={e => handleEditInputChange("remarks", e.target.value)}
+                     rows={1}
+                   />
+                 ) : (
+                   <div className="font-medium">{selectedTicket.remarks}</div>
+                 )}
+               </div>
+             </CardContent>
           </Card>
 
           {/* 推荐解决方案 */}
-          <Card className="shadow-card">
+          <Card className="shadow-card lg:col-span-2">
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
                 <AlertTriangle className="h-5 w-5" />
                 推荐解决方案
               </CardTitle>
-              <CardDescription>基于工单描述自动生成的解决方案建议</CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
-              <Button 
-                onClick={generateSolution}
-                disabled={isGeneratingSolution}
-                className="w-full"
-              >
-                {isGeneratingSolution ? (
-                  <>
-                    <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
-                    生成中...
-                  </>
-                ) : (
-                  <>
-                    <Info className="mr-2 h-4 w-4" />
-                    生成解决方案
-                  </>
-                )}
-              </Button>
-              
-               {solutionText && (
-                 <div className="space-y-2">
-                   <Label className="text-sm font-medium">解决方案内容</Label>
-                   <ScrollArea ref={solutionScrollRef} className="h-80 w-full border rounded-md p-4">
-                     <div className="prose prose-sm max-w-none">
+               {isGeneratingSolution ? (
+                 <div className="flex items-center justify-center h-80 border border-gray-300 rounded-md bg-gray-25">
+                   <div className="text-center">
+                     <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto mb-2"></div>
+                     <p className="text-sm text-muted-foreground">正在生成解决方案...</p>
+                   </div>
+                 </div>
+               ) : solutionText ? (
+                 <div className="h-80 border border-gray-300 rounded-md bg-gray-25">
+                   <ScrollArea ref={solutionScrollRef} className="h-80 w-full p-4">
+                     <div className="text-sm max-w-none">
                        <div className="whitespace-pre-wrap">{solutionText}</div>
                      </div>
                    </ScrollArea>
+                 </div>
+               ) : (
+                 <div className="flex items-center justify-center h-80 border border-gray-300 rounded-md bg-gray-25">
+                   <p className="text-sm text-muted-foreground">点击工单查看解决方案</p>
                  </div>
                )}
             </CardContent>
           </Card>
         </div>
       )}
+
+      {/* 删除确认对话框 */}
+      <AlertDialog open={isDeleteDialogOpen} onOpenChange={setIsDeleteDialogOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>确认删除工单</AlertDialogTitle>
+            <AlertDialogDescription>
+              您确定要删除工单 <strong>"{ticketToDelete?.title}"</strong> 吗？
+              <br />
+              此操作无法撤销，工单将被永久删除。
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel onClick={handleCancelDelete} disabled={isDeletingTicket}>
+              取消
+            </AlertDialogCancel>
+            <AlertDialogAction 
+              onClick={handleConfirmDelete} 
+              disabled={isDeletingTicket}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              {isDeletingTicket ? (
+                <>
+                  <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
+                  删除中...
+                </>
+              ) : (
+                "确认删除"
+              )}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }

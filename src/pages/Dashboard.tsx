@@ -11,7 +11,9 @@ import {
   DollarSign,
   Target,
   CheckCircle,
-  RefreshCw
+  RefreshCw,
+  Clock,
+  AlertCircle
 } from "lucide-react";
 
 // 模拟数据 - 基于现有模块的实际数据结构
@@ -33,10 +35,10 @@ const mockData = {
     { id: 3, name: "刘主任", company: "教育机构", status: "已转化", priority: "低", estimatedValue: "30万", lastContact: "昨天" }
   ],
   tickets: [
-    { id: "T001", title: "系统登录异常", status: "pending", priority: "high", assignee: "李四", createdAt: "2024-01-15" },
-    { id: "T002", title: "新增客户导出功能", status: "processing", priority: "medium", assignee: "赵六", createdAt: "2024-01-14" },
-    { id: "T003", title: "数据统计页面显示错误", status: "resolved", priority: "high", assignee: "孙八", createdAt: "2024-01-13" },
-    { id: "T004", title: "账户权限问题", status: "closed", priority: "urgent", assignee: "吴十", createdAt: "2024-01-12" }
+    { id: "T001", title: "系统登录异常", type: "1", status: "1", description: "用户反馈无法正常登录系统，提示密码错误，但密码确认无误", contact: "张三", phone: "13800138001", remarks: "需要优先处理，影响用户正常使用" },
+    { id: "T002", title: "服务器故障维修", type: "3", status: "3", description: "服务器出现故障，需要紧急维修处理", contact: "李四", phone: "13800138002", remarks: "硬件故障，需要更换配件" },
+    { id: "T003", title: "服务态度投诉", type: "5", status: "5", description: "客户对客服人员的服务态度不满意，要求改进", contact: "王五", phone: "13800138003", remarks: "已处理，客服人员已道歉" },
+    { id: "T004", title: "产品功能咨询", type: "1", status: "5", description: "客户咨询产品新功能的使用方法和注意事项", contact: "赵六", phone: "13800138004", remarks: "已提供详细说明文档" }
   ]
 };
 
@@ -50,8 +52,9 @@ const calculateStats = () => {
   const newLeads = mockData.leads.filter(l => l.status === "新线索").length;
   const convertedLeads = mockData.leads.filter(l => l.status === "已转化").length;
   const totalTickets = mockData.tickets.length;
-  const pendingTickets = mockData.tickets.filter(t => t.status === "pending").length;
-  const resolvedTickets = mockData.tickets.filter(t => t.status === "resolved").length;
+  const pendingTickets = mockData.tickets.filter(t => t.status === "1").length;
+  const processingTickets = mockData.tickets.filter(t => t.status === "3").length;
+  const completedTickets = mockData.tickets.filter(t => t.status === "5").length;
   
   // 计算总收入和转化率
   const totalRevenue = mockData.customers.reduce((sum, c) => {
@@ -60,7 +63,7 @@ const calculateStats = () => {
   }, 0);
   
   const conversionRate = totalLeads > 0 ? Math.round((convertedLeads / totalLeads) * 100) : 0;
-  const ticketResolutionRate = totalTickets > 0 ? Math.round((resolvedTickets / totalTickets) * 100) : 0;
+  const ticketResolutionRate = totalTickets > 0 ? Math.round((completedTickets / totalTickets) * 100) : 0;
 
   return {
     totalCustomers,
@@ -72,7 +75,8 @@ const calculateStats = () => {
     convertedLeads,
     totalTickets,
     pendingTickets,
-    resolvedTickets,
+    processingTickets,
+    completedTickets,
     totalRevenue,
     conversionRate,
     ticketResolutionRate
@@ -120,7 +124,7 @@ const kpiCards = [
     icon: Ticket,
     color: "text-orange-600",
     bgColor: "bg-orange-50",
-    description: `待处理 ${stats.pendingTickets} 个，已解决 ${stats.resolvedTickets} 个`
+    description: `待分配 ${stats.pendingTickets} 个，处理中 ${stats.processingTickets} 个，已完成 ${stats.completedTickets} 个`
   }
 ];
 
@@ -200,6 +204,49 @@ export default function Dashboard() {
             </CardContent>
           </Card>
         ))}
+      </div>
+
+      {/* 工单状态统计 */}
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+        <Card className="shadow-card">
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">总工单数</CardTitle>
+            <Ticket className="h-4 w-4 text-muted-foreground" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold">{stats.totalTickets}</div>
+          </CardContent>
+        </Card>
+        
+        <Card className="shadow-card">
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">待分配</CardTitle>
+            <Clock className="h-4 w-4 text-yellow-600" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold text-yellow-600">{stats.pendingTickets}</div>
+          </CardContent>
+        </Card>
+        
+        <Card className="shadow-card">
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">处理中</CardTitle>
+            <AlertCircle className="h-4 w-4 text-blue-600" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold text-blue-600">{stats.processingTickets}</div>
+          </CardContent>
+        </Card>
+        
+        <Card className="shadow-card">
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">已完成</CardTitle>
+            <CheckCircle className="h-4 w-4 text-green-600" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold text-green-600">{stats.completedTickets}</div>
+          </CardContent>
+        </Card>
       </div>
 
       {/* Business Metrics */}
